@@ -1,3 +1,6 @@
+#1# Victory Royale
+
+
 import pygame
 import random
 
@@ -6,10 +9,10 @@ pygame.font.init()
 
 
 def make_grid(size):
-    grid = [[random.randint(0,1) for collum in range(size)] for row in range(size)]
+    grid = [[random.randint(0,1) * 255 for collum in range(size)] for row in range(size)]
     return grid
 
-def surrounding_area_population(grid, row_index, pixel_index):
+def binary_surrounding_population(grid, row_index, pixel_index):
     count = 0
     if grid[row_index][pixel_index - 1]:
         count += 1
@@ -37,18 +40,40 @@ def surrounding_area_population(grid, row_index, pixel_index):
     
     return count
 
+def alpha_shade_surrouning_population(grid, row_index, pixel_index):
+    count = 0
+    count += grid[row_index][pixel_index - 1]
+    count += grid[row_index - 1][pixel_index]
+    count += grid[row_index - 1][pixel_index - 1]
+
+    pixel_index = -1 if pixel_index == len(grid[row_index]) - 1 else pixel_index
+    count += grid[row_index][pixel_index + 1]
+    count += grid[row_index-1][pixel_index + 1]
+
+
+    row_index = -1 if row_index == len(grid) - 1 else row_index
+    count += grid[row_index + 1][pixel_index]
+    count += grid[row_index + 1][pixel_index - 1]
+
+    count += grid[row_index + 1][pixel_index + 1]
+
+    count = count / 8
+
+    
+    return count
+
 def run(grid):
-    grid_size = 100
-    PIXEL_SIZE = 7
-    is_iterating = False
+    grid_size = 150
+    PIXEL_SIZE = 5
     running = True
     screen = pygame.display.set_mode((1280, 720))
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("Anonymous-Pro-B", 30)
 
     while running:
-        is_iterating = False
-        screen.fill("purple")
+        is_iterating_sharp = False
+        is_iterating_smooth = False
+        screen.fill("white")
         # poll for events
         # pygame.QUIT event means the user clicked X to close your window
         text_surface = font.render(str(), False, (0, 0, 0))
@@ -57,25 +82,35 @@ def run(grid):
                 running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    is_iterating = True
+                    is_iterating_sharp = True
+                if event.key == pygame.K_w:
+                    is_iterating_smooth = True
                 if event.key == pygame.K_r:
                     grid = make_grid(grid_size)
         for row_index in range(len(grid)):
             for pixel_index in range(len(grid[row_index])):
-                if grid[row_index][pixel_index] == 1:
-                    cell = pygame.Rect((0 + PIXEL_SIZE*pixel_index, 0 + PIXEL_SIZE * row_index), (PIXEL_SIZE,PIXEL_SIZE))
-                    pygame.draw.rect(screen, "black", cell)
+                if grid[row_index][pixel_index]:
+                    cell_surface = pygame.Surface((PIXEL_SIZE, PIXEL_SIZE))
+                    cell_surface.set_alpha(grid[row_index][pixel_index])
+                    cell_surface.fill((0,0,0))
+                    screen.blit(cell_surface, (0 + PIXEL_SIZE*pixel_index, 0 + PIXEL_SIZE * row_index))
                 else:
                     pass
 
-        if is_iterating:
+        if is_iterating_sharp:
             for row_index in range(len(grid)):
                 for pixel_index in range(len(grid[row_index])):
-                    level = surrounding_area_population(grid, row_index, pixel_index)
+                    level = binary_surrounding_population(grid, row_index, pixel_index)
                     if level >= 5:
-                        grid[row_index][pixel_index] = 1
+                        grid[row_index][pixel_index] = 255
                     elif level <= 3:
                         grid[row_index][pixel_index] = 0
+                    #print(level)
+        if is_iterating_smooth:
+            for row_index in range(len(grid)):
+                for pixel_index in range(len(grid[row_index])):
+                    level = alpha_shade_surrouning_population(grid, row_index, pixel_index)
+                    grid[row_index][pixel_index] = level
                     #print(level)
         # flip() the display to put your work on screen
         pygame.display.flip()
